@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  converter-1:
+    build: .
+    command: python converter.py
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  converter-2:
+    build: .
+    command: python converter.py
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  storage-1:
+    build: .
+    command: python storage.py
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - STORAGE_DIR=/app/storage_1
+    volumes:
+      - ./data/storage/storage_1:/app/storage_1
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  storage-2:
+    build: .
+    command: python storage.py
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - STORAGE_DIR=/app/storage_2
+    volumes:
+      - ./data/storage/storage_2:/app/storage_2
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  client-1:
+    build: .
+    command: python client.py
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - INPUT_DIR=/app/input_1
+    volumes:
+      - ./data/input/input_1:/app/input_1
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  client-2:
+    build: .
+    command: python client.py
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - INPUT_DIR=/app/input_2
+    volumes:
+      - ./data/input/input_2:/app/input_2
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
